@@ -46,7 +46,13 @@ export function HeroSection() {
               Digitalizar mi Inventario
               <ArrowRight className="h-4 w-4" />
             </Button>
-            <Button size="lg" variant="outline" className="border-primary/20 text-foreground">
+            <Button
+              render={<a href="/demo" />}
+              nativeButton={false}
+              size="lg"
+              variant="outline"
+              className="border-primary/20 text-foreground"
+            >
               Probar Demo
             </Button>
           </div>

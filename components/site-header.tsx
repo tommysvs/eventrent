@@ -43,7 +43,12 @@ export function SiteHeader() {
           <Button variant="ghost" size="sm" className="text-foreground">
             Iniciar sesión
           </Button>
-          <Button size="sm" className="bg-accent text-accent-foreground hover:bg-accent/90">
+          <Button
+            render={<a href="/demo" />}
+            nativeButton={false}
+            size="sm"
+            className="bg-accent text-accent-foreground hover:bg-accent/90"
+          >
             Probar Demo
           </Button>
         </div>
@@ -72,7 +77,11 @@ export function SiteHeader() {
                 {link.label}
               </a>
             ))}
-            <Button className="mt-2 bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button
+              render={<a href="/demo" onClick={() => setOpen(false)} />}
+              nativeButton={false}
+              className="mt-2 bg-accent text-accent-foreground hover:bg-accent/90"
+            >
               Probar Demo
             </Button>
           </nav>
