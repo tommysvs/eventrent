@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -29,7 +30,7 @@ import {
   FileText,
   Truck,
   History,
-  ArrowLeft,
+  LogOut,
   Menu,
   X,
 } from "lucide-react"
@@ -62,6 +63,7 @@ export function DemoShell({ initialData }: DemoShellProps) {
   const [view, setView] = useState<ViewId>("overview")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [data, setData] = useState(initialData)
+  const router = useRouter()
 
   useEffect(() => {
     setData(initialData)
@@ -98,6 +100,12 @@ export function DemoShell({ initialData }: DemoShellProps) {
     }
 
     return payload
+  }
+
+  async function handleLogout() {
+    await fetch("/api/auth/logout", { method: "POST" })
+    router.replace("/login")
+    router.refresh()
   }
 
   const inventoryActions = {
@@ -169,13 +177,13 @@ export function DemoShell({ initialData }: DemoShellProps) {
         </nav>
         <div className="border-t border-border p-3">
           <Button
-            render={<Link href="/" />}
-            nativeButton={false}
+            render={<button type="button" onClick={handleLogout} />}
+            nativeButton
             variant="ghost"
             className="w-full justify-start gap-3 text-muted-foreground"
           >
-            <ArrowLeft className="h-4 w-4" />
-            Volver al inicio
+            <LogOut className="h-4 w-4" />
+            Cerrar sesión
           </Button>
         </div>
       </aside>
@@ -204,9 +212,6 @@ export function DemoShell({ initialData }: DemoShellProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            <span className="hidden rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent sm:inline">
-              Demo · datos reales
-            </span>
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">ER</AvatarFallback>
             </Avatar>
