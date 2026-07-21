@@ -5,9 +5,11 @@ const styles: Record<string, string> = {
   disponible: "bg-accent/15 text-accent border-accent/30",
   reservado: "bg-primary/10 text-primary border-primary/25",
   mantenimiento: "bg-destructive/10 text-destructive border-destructive/25",
+  agotado: "bg-slate-500/10 text-slate-600 border-slate-500/25",
   confirmado: "bg-accent/15 text-accent border-accent/30",
   pendiente: "bg-amber-500/10 text-amber-600 border-amber-500/25",
   entregado: "bg-primary/10 text-primary border-primary/25",
+  cancelado: "bg-destructive/10 text-destructive border-destructive/25",
   entregada: "bg-primary/10 text-primary border-primary/25",
   borrador: "bg-muted text-muted-foreground border-border",
   enviada: "bg-primary/10 text-primary border-primary/25",
@@ -15,10 +17,17 @@ const styles: Record<string, string> = {
   rechazada: "bg-destructive/10 text-destructive border-destructive/25",
   programada: "bg-amber-500/10 text-amber-600 border-amber-500/25",
   "en-ruta": "bg-accent/15 text-accent border-accent/30",
+  reserva: "bg-primary/10 text-primary border-primary/25",
+  liberacion: "bg-muted text-muted-foreground border-border",
+  entrega: "bg-accent/15 text-accent border-accent/30",
+  devolucion: "bg-accent/15 text-accent border-accent/30",
+  ajuste: "bg-slate-500/10 text-slate-600 border-slate-500/25",
+  parcial: "bg-amber-500/10 text-amber-600 border-amber-500/25",
 }
 
 const labels: Record<string, string> = {
   "en-ruta": "En ruta",
+  liberacion: "Liberación",
 }
 
 export function StatusBadge({ status }: { status: string }) {

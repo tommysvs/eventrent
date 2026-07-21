@@ -1,21 +1,34 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { OverviewView } from "@/components/demo/overview-view"
-import { InventoryView } from "@/components/demo/inventory-view"
-import { CalendarView } from "@/components/demo/calendar-view"
-import { QuotesView } from "@/components/demo/quotes-view"
-import { LogisticsView } from "@/components/demo/logistics-view"
+import { OverviewView } from "./overview-view"
+import { InventoryView } from "./inventory-view"
+import { CalendarView } from "./calendar-view"
+import { QuotesView } from "./quotes-view"
+import { LogisticsView } from "./logistics-view"
+import { MovementsView } from "./movements-view"
+import type {
+  Delivery,
+  DemoSnapshot,
+  EventBooking,
+  InventoryItem,
+  NewDelivery,
+  NewEventBooking,
+  NewInventoryItem,
+  NewQuote,
+  Quote,
+} from "@/lib/demo-types"
 import {
   LayoutDashboard,
   Boxes,
   CalendarDays,
   FileText,
   Truck,
+  History,
   ArrowLeft,
   Menu,
   X,
@@ -27,9 +40,14 @@ const nav = [
   { id: "calendar", label: "Disponibilidad", icon: CalendarDays },
   { id: "quotes", label: "Cotizaciones", icon: FileText },
   { id: "logistics", label: "Logística", icon: Truck },
+  { id: "movements", label: "Movimientos", icon: History },
 ] as const
 
 type ViewId = (typeof nav)[number]["id"]
+
+type DemoShellProps = {
+  initialData: DemoSnapshot
+}
 
 const titles: Record<ViewId, { title: string; subtitle: string }> = {
   overview: { title: "Panel general", subtitle: "Resumen operativo en tiempo real" },
@@ -37,17 +55,77 @@ const titles: Record<ViewId, { title: string; subtitle: string }> = {
   calendar: { title: "Calendario de disponibilidad", subtitle: "Reservas y eventos programados" },
   quotes: { title: "Cotizaciones", subtitle: "Presupuestos generados automáticamente" },
   logistics: { title: "Logística de entregas", subtitle: "Rutas optimizadas del día" },
+  movements: { title: "Movimientos de inventario", subtitle: "Historial de reservas, ajustes y entregas" },
 }
 
-export function DemoShell() {
+export function DemoShell({ initialData }: DemoShellProps) {
   const [view, setView] = useState<ViewId>("overview")
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [data, setData] = useState(initialData)
+
+  useEffect(() => {
+    setData(initialData)
+  }, [initialData])
 
   const active = titles[view]
 
+  async function refreshData() {
+    const response = await fetch("/api/demo")
+    if (!response.ok) {
+      throw new Error("No se pudo sincronizar la demo")
+    }
+
+    setData(await response.json())
+  }
+
+  async function mutate(resource: string, method: "POST" | "PATCH" | "DELETE", body?: unknown, id?: string) {
+    const url = id ? `/api/demo/${resource}?id=${encodeURIComponent(id)}` : `/api/demo/${resource}`
+    const response = await fetch(url, {
+      method,
+      headers: body ? { "Content-Type": "application/json" } : undefined,
+      body: body ? JSON.stringify(body) : undefined,
+    })
+
+    const payload = await response.json().catch(() => null)
+    if (!response.ok) {
+      throw new Error(payload?.error ?? "No se pudo guardar el registro")
+    }
+
+    await refreshData()
+
+    if (method === "POST") {
+      return payload?.id ?? null
+    }
+
+    return payload
+  }
+
+  const inventoryActions = {
+    create: (item: NewInventoryItem) => mutate("inventory", "POST", item),
+    update: (id: string, item: InventoryItem) => mutate("inventory", "PATCH", item, id),
+    remove: (id: string) => mutate("inventory", "DELETE", undefined, id),
+  }
+
+  const bookingActions = {
+    create: (booking: NewEventBooking) => mutate("bookings", "POST", booking),
+    update: (id: string, booking: EventBooking) => mutate("bookings", "PATCH", booking, id),
+    remove: (id: string) => mutate("bookings", "DELETE", undefined, id),
+  }
+
+  const quoteActions = {
+    create: (quote: NewQuote) => mutate("quotes", "POST", quote),
+    update: (id: string, quote: Quote) => mutate("quotes", "PATCH", quote, id),
+    remove: (id: string) => mutate("quotes", "DELETE", undefined, id),
+  }
+
+  const deliveryActions = {
+    create: (delivery: NewDelivery) => mutate("deliveries", "POST", delivery),
+    update: (id: string, delivery: Delivery) => mutate("deliveries", "PATCH", delivery, id),
+    remove: (id: string) => mutate("deliveries", "DELETE", undefined, id),
+  }
+
   return (
     <div className="flex min-h-screen bg-secondary/40">
-      {/* Sidebar */}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-card transition-transform lg:static lg:translate-x-0",
@@ -110,7 +188,6 @@ export function DemoShell() {
         />
       )}
 
-      {/* Main */}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-4 backdrop-blur sm:px-6">
           <div className="flex items-center gap-3">
@@ -128,7 +205,7 @@ export function DemoShell() {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent sm:inline">
-              Demo · datos de ejemplo
+              Demo · datos reales
             </span>
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">ER</AvatarFallback>
@@ -137,11 +214,45 @@ export function DemoShell() {
         </header>
 
         <main className="flex-1 p-4 sm:p-6">
-          {view === "overview" && <OverviewView />}
-          {view === "inventory" && <InventoryView />}
-          {view === "calendar" && <CalendarView />}
-          {view === "quotes" && <QuotesView />}
-          {view === "logistics" && <LogisticsView />}
+          {view === "overview" && <OverviewView snapshot={data} />}
+          {view === "inventory" && (
+            <InventoryView
+              inventory={data.inventory}
+              onCreate={inventoryActions.create}
+              onUpdate={inventoryActions.update}
+              onDelete={inventoryActions.remove}
+            />
+          )}
+          {view === "calendar" && (
+            <CalendarView
+              bookings={data.bookings}
+              inventory={data.inventory}
+              onCreate={bookingActions.create}
+              onUpdate={bookingActions.update}
+              onDelete={bookingActions.remove}
+            />
+          )}
+          {view === "quotes" && (
+            <QuotesView
+              quotes={data.quotes}
+              inventory={data.inventory}
+              bookings={data.bookings}
+              onCreate={quoteActions.create}
+              onUpdate={quoteActions.update}
+              onDelete={quoteActions.remove}
+              onCreateBooking={bookingActions.create}
+            />
+          )}
+          {view === "logistics" && (
+            <LogisticsView
+              deliveries={data.deliveries}
+              bookings={data.bookings}
+              onCreate={deliveryActions.create}
+              onUpdate={deliveryActions.update}
+              onDelete={deliveryActions.remove}
+            />
+          )}
+          {view === "movements" && <MovementsView movements={data.inventoryMovements} />}
         </main>
       </div>
     </div>
