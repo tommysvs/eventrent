@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     if (!passwordMatches) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
     }
-
+8
     return NextResponse.json({
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
     })
