@@ -2,13 +2,18 @@ import { ArrowRight, Boxes, CheckCircle2, Sparkles, TrendingUp } from "lucide-re
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 
-const CALENDAR_DAYS = [
+type CalendarDay = {
+  d: number
+  status?: "booked" | "hold" | "today"
+}
+
+const CALENDAR_DAYS: readonly CalendarDay[] = [
   { d: 1 }, { d: 2, status: "booked" }, { d: 3 }, { d: 4, status: "hold" },
   { d: 5, status: "booked" }, { d: 6 }, { d: 7 }, { d: 8, status: "booked" },
   { d: 9 }, { d: 10 }, { d: 11, status: "hold" }, { d: 12, status: "booked" },
   { d: 13 }, { d: 14 }, { d: 15, status: "today" }, { d: 16, status: "booked" },
   { d: 17 }, { d: 18 }, { d: 19, status: "booked" }, { d: 20 }, { d: 21 },
-] as const
+]
 
 export function HeroSection() {
   return (
@@ -42,12 +47,8 @@ export function HeroSection() {
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Button size="lg" className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
-              Digitalizar mi Inventario
-              <ArrowRight className="h-4 w-4" />
-            </Button>
             <Button
-              render={<a href="/demo" />}
+              render={<a href="/login" />}
               nativeButton={false}
               size="lg"
               variant="outline"

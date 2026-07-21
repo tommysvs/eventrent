@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { CalendarClock, Menu, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 const NAV_LINKS = [
   { label: "Producto", href: "#producto" },
@@ -43,20 +44,12 @@ export function SiteHeader() {
           <Button
             render={<a href="/login" />}
             nativeButton={false}
-            variant="ghost"
-            size="sm"
-            className="text-foreground"
-          >
-            Iniciar sesión
-          </Button>
-          <Button
-            render={<a href="/demo" />}
-            nativeButton={false}
             size="sm"
             className="bg-accent text-accent-foreground hover:bg-accent/90"
           >
-            Probar Demo
+            Iniciar sesión
           </Button>
+          <ThemeToggle />
         </div>
 
         <button
@@ -86,18 +79,13 @@ export function SiteHeader() {
             <Button
               render={<a href="/login" onClick={() => setOpen(false)} />}
               nativeButton={false}
-              variant="ghost"
-              className="mt-2 justify-center text-foreground"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               Iniciar sesión
             </Button>
-            <Button
-              render={<a href="/demo" onClick={() => setOpen(false)} />}
-              nativeButton={false}
-              className="bg-accent text-accent-foreground hover:bg-accent/90"
-            >
-              Probar Demo
-            </Button>
+            <div className="mt-2">
+              <ThemeToggle className="w-full justify-center" />
+            </div>
           </nav>
         </div>
       )}

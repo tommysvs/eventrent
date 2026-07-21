@@ -14,16 +14,14 @@ export function SiteFooter() {
             tiempo real con EventRent.
           </p>
           <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
-            <Button size="lg" className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
+            <Button 
+              type="button"
+              render={<a href="/login" />} 
+              nativeButton={false}
+              size="lg" 
+              className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90">
               Digitalizar mi Inventario
               <ArrowRight className="h-4 w-4" />
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-primary-foreground/20 bg-transparent text-primary-foreground hover:bg-primary-foreground/10 hover:text-primary-foreground"
-            >
-              Probar Demo
             </Button>
           </div>
         </div>

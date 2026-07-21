@@ -12,7 +12,6 @@ export const metadata: Metadata = {
   title: 'EventRent — Gestión inteligente de inventario y logística de eventos',
   description:
     'Plataforma web inteligente para empresas de alquiler de mobiliario y organización de eventos: inventario en tiempo real, calendario de disponibilidad, cotizaciones instantáneas y optimización logística de entregas.',
-  generator: 'v0.app',
   icons: {
     icon: [
       {
@@ -45,11 +44,28 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const themeInitScript = `
+    (() => {
+      try {
+        const stored = localStorage.getItem('theme')
+        const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches
+        const theme = stored === 'dark' || stored === 'light' ? stored : (prefersLight ? 'light' : 'dark')
+        const root = document.documentElement
+        root.classList.remove('light', 'dark')
+        root.classList.add(theme)
+      } catch {}
+    })();
+  `
+
   return (
     <html
       lang="es"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} bg-background`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+      </head>
       <body className="font-sans antialiased">
         {children}
       </body>
