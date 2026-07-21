@@ -2,22 +2,46 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowRight, CalendarClock, Eye, EyeOff, Lock, Mail, ShieldCheck, Sparkles } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { ArrowRight, CalendarClock, Eye, EyeOff, Lock, ShieldCheck, Sparkles, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState("")
+  const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
-  const [submitted, setSubmitted] = useState(false)
+  const [error, setError] = useState("")
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    if (email && password) {
-      setSubmitted(true)
+    setError("")
+    setLoading(true)
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        setError(data.error ?? "No se pudo iniciar sesión")
+        return
+      }
+
+      router.push("/demo")
+      router.refresh()
+    } catch {
+      setError("No se pudo conectar con el servidor")
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -51,15 +75,15 @@ export default function LoginPage() {
             className="mb-6 gap-1.5 rounded-full border-accent/20 bg-accent/10 px-3 py-1 text-accent"
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Acceso seguro para equipos de eventos
+            Acceso privado para clientes del SaaS
           </Badge>
 
           <h1 className="text-balance text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
-            Inicia sesión y gestiona tu operación con más control.
+            Inicia sesión con tu usuario y gestiona inventarios, reservas y logística.
           </h1>
 
           <p className="mt-4 max-w-lg text-pretty text-lg leading-relaxed text-muted-foreground">
-            Centraliza tus reservas, inventario y entregas desde un solo lugar, con una experiencia limpia y rápida.
+            El acceso lo define el dueño del SaaS. Tú solo entras con las credenciales que te entreguen para operar tu cuenta.
           </p>
 
           <div className="mt-8 space-y-3 rounded-2xl border border-border/70 bg-card/70 p-5 shadow-sm">
@@ -67,13 +91,13 @@ export default function LoginPage() {
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <ShieldCheck className="h-4 w-4" />
               </div>
-              <span>Acceso protegido para usuarios y equipos operativos.</span>
+              <span>Credenciales asignadas por el dueño del sistema.</span>
             </div>
             <div className="flex items-center gap-3 text-sm text-foreground">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-accent/10 text-accent">
                 <CalendarClock className="h-4 w-4" />
               </div>
-              <span>Consulta disponibilidad en tiempo real desde cualquier lugar.</span>
+              <span>Acceso simple para revisar stock, reservas y entregas.</span>
             </div>
           </div>
         </section>
@@ -82,24 +106,24 @@ export default function LoginPage() {
           <CardHeader className="px-6 pb-0 pt-6">
             <CardTitle className="text-2xl text-foreground">Bienvenido de nuevo</CardTitle>
             <CardDescription>
-              Inicia sesión para entrar a tu panel de EventRent.
+              Usa tu usuario y contraseña para entrar al panel de EventRent.
             </CardDescription>
           </CardHeader>
 
           <CardContent className="px-6 pb-6 pt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="email" className="text-sm font-medium text-foreground">
-                  Correo electrónico
+                <label htmlFor="username" className="text-sm font-medium text-foreground">
+                  Usuario
                 </label>
                 <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                  <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
-                    id="email"
-                    type="email"
-                    value={email}
-                    onChange={(event) => setEmail(event.target.value)}
-                    placeholder="tu@empresa.com"
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(event) => setUsername(event.target.value)}
+                    placeholder="cliente01"
                     className="h-11 pl-9"
                   />
                 </div>
@@ -140,20 +164,20 @@ export default function LoginPage() {
                 </a>
               </div>
 
-              <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90">
-                Entrar
+              <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={loading}>
+                {loading ? "Entrando..." : "Entrar"}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </form>
 
-            {submitted && (
+            {error && (
               <div className="mt-4 rounded-lg border border-accent/20 bg-accent/10 p-3 text-sm text-accent">
-                ¡Perfecto! El formulario quedó listo para conectarse con tu backend real.
+                {error}
               </div>
             )}
 
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              ¿Aún no tienes cuenta? <a href="#" className="font-medium text-foreground hover:text-accent">Solicita acceso</a>
+              ¿Aún no tienes cuenta? <a href="mailto:soporte@eventrent.local" className="font-medium text-foreground hover:text-accent">Solicita acceso al dueño del SaaS</a>
             </p>
           </CardContent>
         </Card>
