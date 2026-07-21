@@ -40,7 +40,13 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden items-center gap-3 md:flex">
-          <Button variant="ghost" size="sm" className="text-foreground">
+          <Button
+            render={<a href="/login" />}
+            nativeButton={false}
+            variant="ghost"
+            size="sm"
+            className="text-foreground"
+          >
             Iniciar sesión
           </Button>
           <Button
@@ -78,9 +84,17 @@ export function SiteHeader() {
               </a>
             ))}
             <Button
+              render={<a href="/login" onClick={() => setOpen(false)} />}
+              nativeButton={false}
+              variant="ghost"
+              className="mt-2 justify-center text-foreground"
+            >
+              Iniciar sesión
+            </Button>
+            <Button
               render={<a href="/demo" onClick={() => setOpen(false)} />}
               nativeButton={false}
-              className="mt-2 bg-accent text-accent-foreground hover:bg-accent/90"
+              className="bg-accent text-accent-foreground hover:bg-accent/90"
             >
               Probar Demo
             </Button>
