@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Separator } from "@/components/ui/separator"
 import { StatusBadge } from "@/components/demo/status-badge"
+import { SearchField } from "@/components/demo/search-field"
 import type { BookingItem, EventBooking, InventoryItem, NewEventBooking, NewQuote, Quote, QuoteItem } from "@/lib/demo-types"
 import { currency, quoteTotal } from "@/lib/demo-types"
 import { cn } from "@/lib/utils"
@@ -105,6 +106,7 @@ function bookingPayloadFromQuote(quote: Quote): NewEventBooking {
 }
 
 export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, onDelete, onCreateBooking }: QuotesViewProps) {
+  const [query, setQuery] = useState("")
   const [activeId, setActiveId] = useState(quotes[0]?.id ?? "")
   const [draft, setDraft] = useState<QuoteFormState>(quotes[0] ? toDraft(quotes[0]) : emptyDraft())
   const [error, setError] = useState("")
@@ -112,6 +114,18 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
   const inventoryById = useMemo(() => new Map(inventory.map((item) => [item.id, item])), [inventory])
   const active = useMemo(() => quotes.find((quote) => quote.id === activeId), [quotes, activeId])
   const bookingByQuoteId = useMemo(() => new Map(bookings.filter((booking) => booking.quoteId).map((booking) => [booking.quoteId as string, booking])), [bookings])
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const filteredQuotes = useMemo(() => {
+    if (!normalizedQuery) {
+      return quotes
+    }
+
+    return quotes.filter((quote) => {
+      const haystack = [quote.id, quote.client, quote.event, quote.status, ...quote.items.map((item) => item.inventoryName ?? item.inventoryId)].join(" ").toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+  }, [quotes, normalizedQuery])
 
   useEffect(() => {
     if (active) {
@@ -222,10 +236,16 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       <div className="space-y-3 lg:col-span-2">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Buscar cotizaciones..."
+          ariaLabel="Buscar cotizaciones"
+        />
         <Button type="button" className="w-full" onClick={startCreate}>
           Nueva cotización
         </Button>
-        {quotes.map((quote) => (
+        {filteredQuotes.map((quote) => (
           <button
             key={quote.id}
             onClick={() => selectQuote(quote)}
@@ -245,6 +265,7 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
             <p className="mt-2 text-lg font-semibold text-foreground">{currency.format(quoteTotal(quote) * 1.21)}</p>
           </button>
         ))}
+        {filteredQuotes.length === 0 && <p className="rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">No se encontraron cotizaciones con esos criterios.</p>}
       </div>
 
       <Card className="lg:col-span-3">

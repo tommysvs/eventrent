@@ -1,5 +1,7 @@
 "use client"
 
+import { useMemo, useState } from "react"
+import { SearchField } from "@/components/demo/search-field"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { StatusBadge } from "@/components/demo/status-badge"
@@ -11,16 +13,39 @@ type MovementsViewProps = {
 }
 
 export function MovementsView({ movements }: MovementsViewProps) {
+  const [query, setQuery] = useState("")
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const filteredMovements = useMemo(() => {
+    if (!normalizedQuery) {
+      return movements
+    }
+
+    return movements.filter((movement) => {
+      const haystack = [movement.inventoryId, movement.inventoryName, movement.bookingCode, movement.bookingId, movement.movementType, movement.notes, movement.quantity, movement.previousAvailable, movement.newAvailable, movement.previousReserved, movement.newReserved].join(" ").toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+  }, [movements, normalizedQuery])
+
   return (
     <div className="space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-base">Historial de inventario</CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-base">Historial de inventario</CardTitle>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Buscar movimientos..."
+              ariaLabel="Buscar movimientos de inventario"
+              className="sm:max-w-sm"
+            />
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
-          {movements.length === 0 && <p className="text-sm text-muted-foreground">Todavía no hay movimientos registrados.</p>}
+          {filteredMovements.length === 0 && <p className="text-sm text-muted-foreground">No se encontraron movimientos con esos criterios.</p>}
 
-          {movements.map((movement) => (
+          {filteredMovements.map((movement) => (
             <div key={`${movement.inventoryId}-${movement.createdAt}-${movement.movementType}`} className="rounded-lg border border-border p-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-1">

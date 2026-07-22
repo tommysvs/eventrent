@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StatusBadge } from "@/components/demo/status-badge"
+import { SearchField } from "@/components/demo/search-field"
 import type { BookingItem, EventBooking, InventoryItem, NewEventBooking, Quote } from "@/lib/demo-types"
 import { currency, quoteTotal } from "@/lib/demo-types"
 import { cn } from "@/lib/utils"
@@ -143,7 +144,9 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [draft, setDraft] = useState<BookingFormState>(emptyDraft())
   const [error, setError] = useState("")
+  const [query, setQuery] = useState("")
   const noQuoteValue = "__none__"
+  const normalizedQuery = query.trim().toLowerCase()
 
   const relatedQuotes = useMemo(() => {
     const pendingQuotes = quotes.filter((quote) => quote.status === "borrador" || quote.status === "enviada")
@@ -162,6 +165,14 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
   const calculatedTotal = useMemo(() => bookingDraftTotal(draft.items), [draft.items])
 
   const inventoryById = useMemo(() => new Map(inventory.map((item) => [item.id, item])), [inventory])
+  const matchesQuery = (booking: EventBooking) => {
+    if (!normalizedQuery) {
+      return true
+    }
+
+    const haystack = [booking.id, booking.client, booking.eventName, booking.date, booking.endDate, booking.quoteId, booking.status, booking.paymentStatus, booking.value].join(" ").toLowerCase()
+    return haystack.includes(normalizedQuery)
+  }
 
   const { cells, monthLabel } = useMemo(() => {
     const first = new Date(YEAR, MONTH, 1)
@@ -177,7 +188,7 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
 
   function bookingsForDay(day: number) {
     const iso = dayToIso(day)
-    return bookings.filter((booking) => iso >= booking.date && iso <= booking.endDate)
+    return bookings.filter((booking) => iso >= booking.date && iso <= booking.endDate && matchesQuery(booking))
   }
 
   const selectedBookings = selected ? bookingsForDay(selected) : []
@@ -331,7 +342,16 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <Card className="lg:col-span-2">
         <CardHeader>
-          <CardTitle className="text-base capitalize">{monthLabel}</CardTitle>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <CardTitle className="text-base capitalize">{monthLabel}</CardTitle>
+            <SearchField
+              value={query}
+              onChange={setQuery}
+              placeholder="Buscar reservas..."
+              ariaLabel="Buscar reservas"
+              className="sm:max-w-sm"
+            />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs font-medium text-muted-foreground">
@@ -398,7 +418,11 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
             </div>
           </CardHeader>
           <CardContent className="space-y-3">
-            {selectedBookings.length === 0 && <p className="text-sm text-muted-foreground">No hay eventos programados para este día.</p>}
+              {selectedBookings.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {normalizedQuery ? "No hay eventos que coincidan con la búsqueda para este día." : "No hay eventos programados para este día."}
+                </p>
+              )}
             {selectedBookings.map((booking) => (
               <div key={booking.id} className="space-y-3 rounded-lg border border-border p-3">
                 <div className="flex items-center justify-between gap-2">

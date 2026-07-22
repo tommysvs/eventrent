@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StatusBadge } from "@/components/demo/status-badge"
+import { SearchField } from "@/components/demo/search-field"
 import type { Delivery, EventBooking, NewDelivery } from "@/lib/demo-types"
 import { MapPin, Clock, Truck, Route } from "lucide-react"
 
@@ -76,6 +77,7 @@ function toBookingDefaults(booking: EventBooking) {
 }
 
 export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDelete }: LogisticsViewProps) {
+  const [query, setQuery] = useState("")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [draft, setDraft] = useState<DeliveryFormState>(emptyDraft())
@@ -83,6 +85,18 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
 
   const bookingById = useMemo(() => new Map(bookings.map((booking) => [booking.id, booking])), [bookings])
   const bookingOptions = useMemo(() => bookings, [bookings])
+  const normalizedQuery = query.trim().toLowerCase()
+
+  const filteredDeliveries = useMemo(() => {
+    if (!normalizedQuery) {
+      return deliveries
+    }
+
+    return deliveries.filter((delivery) => {
+      const haystack = [delivery.id, delivery.client, delivery.address, delivery.zone, delivery.bookingId, delivery.deliveryDate, delivery.driver, delivery.status].join(" ").toLowerCase()
+      return haystack.includes(normalizedQuery)
+    })
+  }, [deliveries, normalizedQuery])
 
   const summary = useMemo(() => {
     const totalKm = deliveries.reduce((sum, delivery) => sum + delivery.distanceKm, 0)
@@ -224,9 +238,16 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
               Nueva ruta
             </Button>
           </div>
+          <SearchField
+            value={query}
+            onChange={setQuery}
+            placeholder="Buscar rutas..."
+            ariaLabel="Buscar rutas de entrega"
+            className="sm:max-w-sm"
+          />
         </CardHeader>
         <CardContent className="space-y-3">
-          {deliveries.map((delivery) => (
+          {filteredDeliveries.map((delivery) => (
             <div key={delivery.id} className="flex flex-col gap-3 rounded-lg border border-border p-4 lg:flex-row lg:items-center lg:justify-between">
               <div className="flex items-start gap-3">
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-secondary text-xs font-semibold text-primary">
@@ -272,6 +293,7 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
               </div>
             </div>
           ))}
+          {filteredDeliveries.length === 0 && <p className="text-sm text-muted-foreground">No se encontraron rutas con esos criterios.</p>}
         </CardContent>
       </Card>
 

@@ -22,9 +22,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { StatusBadge } from "@/components/demo/status-badge"
+import { SearchField } from "@/components/demo/search-field"
 import type { InventoryItem, InventoryStatus, NewInventoryItem } from "@/lib/demo-types"
 import { currency } from "@/lib/demo-types"
-import { Search } from "lucide-react"
 
 type InventoryFormState = {
   name: string
@@ -74,14 +74,14 @@ function toDraft(item: InventoryItem): InventoryFormState {
 
 export function InventoryView({ inventory, onCreate, onUpdate, onDelete }: InventoryViewProps) {
   const [query, setQuery] = useState("")
-  const [category, setCategory] = useState("todas")
+  const [category, setCategory] = useState("Todas las categorías")
   const [editingId, setEditingId] = useState<string | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [draft, setDraft] = useState<InventoryFormState>(emptyDraft())
   const [error, setError] = useState("")
 
   const categories = useMemo(
-    () => ["todas", ...Array.from(new Set(inventory.map((item) => item.category)))],
+    () => ["Todas las categorías", ...Array.from(new Set(inventory.map((item) => item.category)))],
     [inventory],
   )
 
@@ -91,7 +91,7 @@ export function InventoryView({ inventory, onCreate, onUpdate, onDelete }: Inven
         const matchesQuery =
           item.name.toLowerCase().includes(query.toLowerCase()) ||
           item.id.toLowerCase().includes(query.toLowerCase())
-        const matchesCategory = category === "todas" || item.category === category
+        const matchesCategory = category === "Todas las categorías" || item.category === category
         return matchesQuery && matchesCategory
       }),
     [inventory, query, category],
@@ -174,24 +174,20 @@ export function InventoryView({ inventory, onCreate, onUpdate, onDelete }: Inven
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Buscar por nombre o código..."
-            className="pl-9"
-            aria-label="Buscar en inventario"
-          />
-        </div>
-        <Select value={category} onValueChange={(value) => setCategory(value ?? "todas")}>
-          <SelectTrigger className="sm:w-56" aria-label="Filtrar por categoría">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Buscar por nombre o código..."
+          ariaLabel="Buscar en inventario"
+        />
+        <Select value={category} onValueChange={(value) => setCategory(value ?? "Todas las categorías")}>
+          <SelectTrigger className="sm:w-56 bg-white" aria-label="Filtrar por categoría">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {categories.map((itemCategory) => (
-              <SelectItem key={itemCategory} value={itemCategory} className="capitalize">
-                {itemCategory === "todas" ? "Todas las categorías" : itemCategory}
+              <SelectItem key={itemCategory} value={itemCategory}>
+                {itemCategory === "Todas las categorías" ? "Todas las categorías" : itemCategory}
               </SelectItem>
             ))}
           </SelectContent>
