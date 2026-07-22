@@ -1,6 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type FormEvent } from "react"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -100,23 +101,48 @@ function parseBookingItems(items: BookingItemDraft[]): BookingItem[] {
 
 function draftItemsFromQuote(quote: Quote, inventoryById: Map<string, InventoryItem>) {
   return quote.items.map((item) => {
-    const matchedInventory = Array.from(inventoryById.values()).find((inventoryItem) => inventoryItem.name === item.name)
+    const quoteItem = item as Quote['items'][number] & { name?: string; inventoryName?: string }
+    let matchedInventory: InventoryItem | undefined
+
+    if (quoteItem.inventoryId) {
+      matchedInventory = inventoryById.get(quoteItem.inventoryId)
+    }
+
+    if (!matchedInventory) {
+      matchedInventory = Array.from(inventoryById.values()).find(
+        (inventoryItem) => inventoryItem.name === quoteItem.inventoryName || inventoryItem.name === quoteItem.name,
+      )
+    }
 
     return {
-      inventoryId: matchedInventory?.id ?? "",
-      qty: String(item.qty),
-      days: String(item.days),
-      price: String(item.price),
+      inventoryId: matchedInventory?.id ?? quoteItem.inventoryId ?? "",
+      qty: String(quoteItem.qty),
+      days: String(quoteItem.days),
+      price: String(quoteItem.price),
     }
   })
+}
+
+function bookingDraftTotal(items: BookingItemDraft[]) {
+  return items.reduce((sum, item) => {
+    const qty = Number(item.qty)
+    const days = Number(item.days)
+    const price = Number(item.price)
+
+    if (!Number.isFinite(qty) || !Number.isFinite(days) || !Number.isFinite(price)) {
+      return sum
+    }
+
+    return sum + qty * days * price
+  }, 0)
 }
 
 export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, onDelete }: CalendarViewProps) {
   const [selected, setSelected] = useState<number | null>(11)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [draft, setDraft] = useState<BookingFormState>(emptyDraft())
   const [error, setError] = useState("")
-  const formRef = useRef<HTMLDivElement | null>(null)
   const noQuoteValue = "__none__"
 
   const relatedQuotes = useMemo(() => {
@@ -132,6 +158,8 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
 
     return [currentQuote, ...pendingQuotes]
   }, [draft.quoteId, quotes])
+
+  const calculatedTotal = useMemo(() => bookingDraftTotal(draft.items), [draft.items])
 
   const inventoryById = useMemo(() => new Map(inventory.map((item) => [item.id, item])), [inventory])
 
@@ -155,6 +183,19 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
   const selectedBookings = selected ? bookingsForDay(selected) : []
 
   useEffect(() => {
+    if (!isFormOpen) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isFormOpen])
+
+  useEffect(() => {
     if (editingId) {
       const current = bookings.find((booking) => booking.id === editingId)
       if (current) {
@@ -168,13 +209,21 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
     setDraft(emptyDraft())
     setSelected(11)
     setError("")
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    setIsFormOpen(true)
   }
 
   function startEdit(booking: EventBooking) {
     setEditingId(booking.id)
     setDraft(toDraft(booking))
     setSelected(Number(booking.date.slice(8, 10)))
+    setError("")
+    setIsFormOpen(true)
+  }
+
+  function closeForm() {
+    setIsFormOpen(false)
+    setEditingId(null)
+    setDraft(emptyDraft())
     setError("")
   }
 
@@ -242,7 +291,7 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
       items: bookingItems.reduce((sum, item) => sum + item.qty, 0),
       status: draft.status,
       paymentStatus: draft.paymentStatus,
-      value: Number(draft.value),
+      value: calculatedTotal,
       bookingItems: bookingItems.map((item) => ({
         inventoryId: item.inventoryId,
         inventoryName: inventoryById.get(item.inventoryId)?.name,
@@ -263,7 +312,7 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
       await onCreate(payload)
     }
 
-    startCreate()
+    closeForm()
   }
 
   async function handleDelete(id: string) {
@@ -274,7 +323,7 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
     await onDelete(id)
 
     if (editingId === id) {
-      startCreate()
+      closeForm()
     }
   }
 
@@ -339,7 +388,7 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
       </Card>
 
       <div className="space-y-4 lg:col-span-1">
-        <Card ref={formRef}>
+        <Card>
           <CardHeader>
             <div className="flex items-center justify-between gap-2">
               <CardTitle className="text-base">{selected ? `Eventos del ${selected} de julio` : "Selecciona un día"}</CardTitle>
@@ -375,163 +424,196 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
             ))}
           </CardContent>
         </Card>
+      </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{editingId ? `Editando ${editingId}` : "Nueva reserva"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {error && <p className="text-sm text-destructive">{error}</p>}
-            <form className="space-y-3" onSubmit={handleSubmit}>
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cotización relacionada</p>
-                <Select
-                  value={draft.quoteId || noQuoteValue}
-                  onValueChange={(value) => {
-                    if (value === noQuoteValue) {
-                      setDraft((current) => ({ ...current, quoteId: "" }))
-                      return
-                    }
+      {isFormOpen && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-[2px] sm:items-center sm:p-6" role="presentation" onClick={closeForm}>
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-3xl border border-border bg-background shadow-[0_30px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/10"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="booking-form-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-border bg-muted/35 px-5 py-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Reserva</p>
+                <h2 id="booking-form-title" className="text-lg font-semibold text-foreground">
+                  {editingId ? `Editando ${editingId}` : "Nueva reserva"}
+                </h2>
+              </div>
+              <Button type="button" variant="ghost" size="sm" onClick={closeForm} aria-label="Cerrar modal">
+                Cerrar
+              </Button>
+            </div>
 
-                    handleQuoteChange(value)
-                  }}
-                >
-                  <SelectTrigger className="w-full" aria-label="Cotización relacionada">
-                    <SelectValue placeholder="Sin cotización" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={noQuoteValue}>Sin cotización</SelectItem>
-                    {relatedQuotes.map((quote) => (
-                      <SelectItem key={quote.id} value={quote.id}>
-                        {quote.id} · {quote.client} · {quote.event} · {currency.format(quoteTotal(quote) * 1.21)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
-              <Input value={draft.eventName} onChange={(event) => setDraft((current) => ({ ...current, eventName: event.target.value }))} placeholder="Evento" />
-              <div className="grid grid-cols-2 gap-2">
-                <Input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} />
-                <Input type="date" value={draft.endDate} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
+            <div className="max-h-[80vh] overflow-y-auto px-5 py-4 sm:max-h-[82vh]">
+              {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+              <form className="space-y-3" onSubmit={handleSubmit}>
                 <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado de la reserva</p>
-                  <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as EventBooking["status"] }))}>
-                    <SelectTrigger className="w-full" aria-label="Estado de la reserva">
-                      <SelectValue />
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cotización relacionada</p>
+                  <Select
+                    value={draft.quoteId || noQuoteValue}
+                    onValueChange={(value) => {
+                      if (value === noQuoteValue) {
+                        setDraft((current) => ({ ...current, quoteId: "" }))
+                        return
+                      }
+
+                      if (value) {
+                        handleQuoteChange(value)
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full" aria-label="Cotización relacionada">
+                      <SelectValue placeholder="Sin cotización" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="confirmado">Confirmado</SelectItem>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="entregado">Entregado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                      <SelectItem value={noQuoteValue}>Sin cotización</SelectItem>
+                      {relatedQuotes.map((quote) => (
+                        <SelectItem key={quote.id} value={quote.id}>
+                          {quote.id} · {quote.client} · {quote.event} · {currency.format(quoteTotal(quote) * 1.21)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-2">
-                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado de pago</p>
-                  <Select value={draft.paymentStatus} onValueChange={(value) => setDraft((current) => ({ ...current, paymentStatus: value as EventBooking["paymentStatus"] }))}>
-                    <SelectTrigger className="w-full" aria-label="Estado de pago">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pendiente">Pendiente</SelectItem>
-                      <SelectItem value="parcial">Parcial</SelectItem>
-                      <SelectItem value="pagado">Pagado</SelectItem>
-                      <SelectItem value="cancelado">Cancelado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
+                <Input value={draft.eventName} onChange={(event) => setDraft((current) => ({ ...current, eventName: event.target.value }))} placeholder="Evento" />
+                <div className="grid grid-cols-2 gap-2">
+                  <Input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} />
+                  <Input type="date" value={draft.endDate} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
                 </div>
-              </div>
-
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-foreground">Items</p>
-                  <Button type="button" variant="outline" size="sm" onClick={addItem}>
-                    Añadir línea
-                  </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado de la reserva</p>
+                    <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as EventBooking["status"] }))}>
+                      <SelectTrigger className="w-full" aria-label="Estado de la reserva">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="confirmado">Confirmado</SelectItem>
+                        <SelectItem value="pendiente">Pendiente</SelectItem>
+                        <SelectItem value="entregado">Entregado</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado de pago</p>
+                    <Select value={draft.paymentStatus} onValueChange={(value) => setDraft((current) => ({ ...current, paymentStatus: value as EventBooking["paymentStatus"] }))}>
+                      <SelectTrigger className="w-full" aria-label="Estado de pago">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendiente">Pendiente</SelectItem>
+                        <SelectItem value="parcial">Parcial</SelectItem>
+                        <SelectItem value="pagado">Pagado</SelectItem>
+                        <SelectItem value="cancelado">Cancelado</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="space-y-3">
-                  {draft.items.map((item, index) => (
-                    <div key={`${index}-${item.inventoryId}`} className="space-y-3 rounded-xl border border-border bg-secondary/30 p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Línea {index + 1}</p>
-                          <p className="text-xs text-muted-foreground">Selecciona el artículo y completa cantidad, días y precio.</p>
-                        </div>
-                        <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
-                          Quitar línea
-                        </Button>
-                      </div>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-foreground">Items</p>
+                    <Button type="button" variant="outline" size="sm" onClick={addItem}>
+                      Añadir línea
+                    </Button>
+                  </div>
 
-                      <div className="space-y-2">
-                        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Producto del inventario</p>
-                        <Select value={item.inventoryId} onValueChange={(value) => updateItem(index, { inventoryId: value ?? "" })}>
-                          <SelectTrigger className="w-full" aria-label={`Inventario ${index + 1}`}>
-                            <SelectValue placeholder="Selecciona un producto" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {inventory.map((inventoryItem) => (
-                              <SelectItem key={inventoryItem.id} value={inventoryItem.id}>
-                                {inventoryItem.id} · {inventoryItem.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                  <div className="space-y-3">
+                    {draft.items.map((item, index) => (
+                      <div key={`${index}-${item.inventoryId}`} className="space-y-3 rounded-xl border border-border bg-secondary/30 p-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="text-sm font-medium text-foreground">Línea {index + 1}</p>
+                            <p className="text-xs text-muted-foreground">Selecciona el artículo y completa cantidad, días y precio.</p>
+                          </div>
+                          <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                            Quitar línea
+                          </Button>
+                        </div>
 
-                      <div className="grid gap-3 md:grid-cols-3">
                         <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cantidad</p>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.qty}
-                            onChange={(event) => updateItem(index, { qty: event.target.value })}
-                            placeholder="Unidades"
-                          />
+                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Producto del inventario</p>
+                          <Select value={item.inventoryId} onValueChange={(value) => updateItem(index, { inventoryId: value ?? "" })}>
+                            <SelectTrigger className="w-full" aria-label={`Inventario ${index + 1}`}>
+                              <SelectValue placeholder="Selecciona un producto" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {inventory.map((inventoryItem) => (
+                                <SelectItem key={inventoryItem.id} value={inventoryItem.id}>
+                                  {inventoryItem.id} · {inventoryItem.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Días</p>
-                          <Input
-                            type="number"
-                            min="1"
-                            value={item.days}
-                            onChange={(event) => updateItem(index, { days: event.target.value })}
-                            placeholder="Duración del alquiler"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Precio por día</p>
-                          <Input
-                            type="number"
-                            step="0.01"
-                            value={item.price}
-                            onChange={(event) => updateItem(index, { price: event.target.value })}
-                            placeholder="Importe unitario"
-                          />
+
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cantidad</p>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.qty}
+                              onChange={(event) => updateItem(index, { qty: event.target.value })}
+                              placeholder="Unidades"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Días</p>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={item.days}
+                              onChange={(event) => updateItem(index, { days: event.target.value })}
+                              placeholder="Duración del alquiler"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Precio por día</p>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              value={item.price}
+                              onChange={(event) => updateItem(index, { price: event.target.value })}
+                              placeholder="Importe unitario"
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <Input type="number" step="0.01" value={draft.value} onChange={(event) => setDraft((current) => ({ ...current, value: event.target.value }))} placeholder="Valor total" />
+                <div className="space-y-2 md:col-span-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Valor total</p>
+                  <Input
+                    type="text"
+                    value={currency.format(calculatedTotal)}
+                    readOnly
+                    aria-readonly="true"
+                    tabIndex={-1}
+                    className="bg-muted/60 font-medium text-foreground"
+                    placeholder="Valor total"
+                  />
+                </div>
 
-              <div className="flex justify-end gap-2">
-                <Button type="button" variant="outline" onClick={startCreate}>
-                  Cancelar
-                </Button>
-                <Button type="submit">{editingId ? "Actualizar" : "Crear"}</Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <Button type="button" variant="outline" onClick={closeForm}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">{editingId ? "Actualizar" : "Crear"}</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      ) : null}
     </div>
   )
 }

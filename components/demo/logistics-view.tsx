@@ -1,6 +1,7 @@
 "use client"
 
-import { useMemo, useRef, useState, type FormEvent } from "react"
+import { createPortal } from "react-dom"
+import { useEffect, useMemo, useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -76,9 +77,9 @@ function toBookingDefaults(booking: EventBooking) {
 
 export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDelete }: LogisticsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [draft, setDraft] = useState<DeliveryFormState>(emptyDraft())
   const [error, setError] = useState("")
-  const formRef = useRef<HTMLDivElement | null>(null)
 
   const bookingById = useMemo(() => new Map(bookings.map((booking) => [booking.id, booking])), [bookings])
   const bookingOptions = useMemo(() => bookings, [bookings])
@@ -96,16 +97,37 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
     ]
   }, [deliveries])
 
+  useEffect(() => {
+    if (!isFormOpen) {
+      return
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = "hidden"
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [isFormOpen])
+
   function startCreate() {
     setEditingId(null)
     setDraft(emptyDraft())
     setError("")
-    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+    setIsFormOpen(true)
   }
 
   function startEdit(delivery: Delivery) {
     setEditingId(delivery.id)
     setDraft(toDraft(delivery))
+    setError("")
+    setIsFormOpen(true)
+  }
+
+  function closeForm() {
+    setIsFormOpen(false)
+    setEditingId(null)
+    setDraft(emptyDraft())
     setError("")
   }
 
@@ -160,7 +182,7 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
       await onCreate(payload)
     }
 
-    startCreate()
+    closeForm()
   }
 
   async function handleDelete(id: string) {
@@ -171,7 +193,7 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
     await onDelete(id)
 
     if (editingId === id) {
-      startCreate()
+      closeForm()
     }
   }
 
@@ -252,100 +274,119 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
         </CardContent>
       </Card>
 
-      <Card ref={formRef}>
-        <CardHeader>
-          <CardTitle className="text-base">{editingId ? `Editando ${editingId}` : "Nueva entrega"}</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <form className="grid gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Booking asociado</p>
-              <Select value={draft.bookingId} onValueChange={handleBookingChange}>
-                <SelectTrigger className="w-full" aria-label="Booking asociado">
-                  <SelectValue placeholder="Selecciona un booking" />
-                </SelectTrigger>
-                <SelectContent>
-                  {bookingOptions.map((booking) => (
-                    <SelectItem key={booking.id} value={booking.id}>
-                      {booking.id} · {booking.client} · {booking.eventName} · {booking.date}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">Se autocompletan cliente y fecha de entrega desde el booking seleccionado.</p>
-            </div>
-            <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cliente</p>
-              <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
-            </div>
-            <Input value={draft.address} onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} placeholder="Dirección" />
-            <Input value={draft.zone} onChange={(event) => setDraft((current) => ({ ...current, zone: event.target.value }))} placeholder="Zona" />
-            <Input type="date" value={draft.deliveryDate} onChange={(event) => setDraft((current) => ({ ...current, deliveryDate: event.target.value }))} />
-            <div className="space-y-2 md:col-span-2">
-              <p className="text-sm font-medium text-foreground">Ventana de entrega</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Desde</p>
-                  <Input
-                    type="time"
-                    value={draft.windowStart}
-                    onChange={(event) => setDraft((current) => ({ ...current, windowStart: event.target.value }))}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Hasta</p>
-                  <Input
-                    type="time"
-                    value={draft.windowEnd}
-                    onChange={(event) => setDraft((current) => ({ ...current, windowEnd: event.target.value }))}
-                  />
-                </div>
+      {isFormOpen && typeof document !== "undefined" ? createPortal(
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-[2px] sm:items-center sm:p-6" role="presentation" onClick={closeForm}>
+          <div
+            className="w-full max-w-2xl overflow-hidden rounded-3xl border border-border bg-background shadow-[0_30px_80px_rgba(0,0,0,0.45)] ring-1 ring-white/10"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delivery-form-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-border bg-muted/35 px-5 py-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Entrega</p>
+                <h2 id="delivery-form-title" className="text-lg font-semibold text-foreground">
+                  {editingId ? `Editando ${editingId}` : "Nueva entrega"}
+                </h2>
               </div>
-            </div>
-            <Input value={draft.driver} onChange={(event) => setDraft((current) => ({ ...current, driver: event.target.value }))} placeholder="Conductor" />
-            <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as Delivery["status"] }))}>
-              <SelectTrigger className="w-full" aria-label="Estado de entrega">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {statusOptions.map((status) => (
-                  <SelectItem key={status} value={status} className="capitalize">
-                    {status}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <div className="grid grid-cols-2 gap-3 md:col-span-2">
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Paradas</p>
-                <Input
-                  type="number"
-                  value={draft.stops}
-                  onChange={(event) => setDraft((current) => ({ ...current, stops: event.target.value }))}
-                  placeholder="Cantidad de paradas"
-                />
-              </div>
-              <div className="space-y-2">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Distancia</p>
-                <Input
-                  type="number"
-                  step="0.01"
-                  value={draft.distanceKm}
-                  onChange={(event) => setDraft((current) => ({ ...current, distanceKm: event.target.value }))}
-                  placeholder="Km estimados"
-                />
-              </div>
-            </div>
-            <div className="flex justify-end gap-2 md:col-span-2">
-              <Button type="button" variant="outline" onClick={startCreate}>
-                Cancelar
+              <Button type="button" variant="ghost" size="sm" onClick={closeForm} aria-label="Cerrar modal">
+                Cerrar
               </Button>
-              <Button type="submit">{editingId ? "Actualizar" : "Crear"}</Button>
             </div>
-          </form>
-        </CardContent>
-      </Card>
+
+            <div className="max-h-[80vh] overflow-y-auto px-5 py-4 sm:max-h-[82vh]">
+              {error && <p className="mb-3 text-sm text-destructive">{error}</p>}
+              <form className="grid gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Booking asociado</p>
+                  <Select value={draft.bookingId} onValueChange={handleBookingChange}>
+                    <SelectTrigger className="w-full" aria-label="Booking asociado">
+                      <SelectValue placeholder="Selecciona un booking" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {bookingOptions.map((booking) => (
+                        <SelectItem key={booking.id} value={booking.id}>
+                          {booking.id} · {booking.client} · {booking.eventName} · {booking.date}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cliente</p>
+                  <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
+                </div>
+                <Input value={draft.address} onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} placeholder="Dirección" />
+                <Input value={draft.zone} onChange={(event) => setDraft((current) => ({ ...current, zone: event.target.value }))} placeholder="Zona" />
+                <Input type="date" value={draft.deliveryDate} onChange={(event) => setDraft((current) => ({ ...current, deliveryDate: event.target.value }))} />
+                <div className="space-y-2 md:col-span-2">
+                  <p className="text-sm font-medium text-foreground">Ventana de entrega</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Desde</p>
+                      <Input
+                        type="time"
+                        value={draft.windowStart}
+                        onChange={(event) => setDraft((current) => ({ ...current, windowStart: event.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Hasta</p>
+                      <Input
+                        type="time"
+                        value={draft.windowEnd}
+                        onChange={(event) => setDraft((current) => ({ ...current, windowEnd: event.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <Input value={draft.driver} onChange={(event) => setDraft((current) => ({ ...current, driver: event.target.value }))} placeholder="Conductor" />
+                <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as Delivery["status"] }))}>
+                  <SelectTrigger className="w-full" aria-label="Estado de entrega">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {statusOptions.map((status) => (
+                      <SelectItem key={status} value={status} className="capitalize">
+                        {status}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="grid grid-cols-2 gap-3 md:col-span-2">
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Paradas</p>
+                    <Input
+                      type="number"
+                      value={draft.stops}
+                      onChange={(event) => setDraft((current) => ({ ...current, stops: event.target.value }))}
+                      placeholder="Cantidad de paradas"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Distancia</p>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={draft.distanceKm}
+                      onChange={(event) => setDraft((current) => ({ ...current, distanceKm: event.target.value }))}
+                      placeholder="Km estimados"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2 md:col-span-2">
+                  <Button type="button" variant="outline" onClick={closeForm}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit">{editingId ? "Actualizar" : "Crear"}</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      ) : null}
     </div>
   )
 }
