@@ -37,10 +37,10 @@ import {
 
 const nav = [
   { id: "overview", label: "Panel general", icon: LayoutDashboard },
-  { id: "inventory", label: "Inventario", icon: Boxes },
-  { id: "calendar", label: "Disponibilidad", icon: CalendarDays },
   { id: "quotes", label: "Cotizaciones", icon: FileText },
+  { id: "calendar", label: "Disponibilidad", icon: CalendarDays },
   { id: "logistics", label: "Logística", icon: Truck },
+  { id: "inventory", label: "Inventario", icon: Boxes },
   { id: "movements", label: "Movimientos", icon: History },
 ] as const
 
@@ -231,6 +231,7 @@ export function DemoShell({ initialData }: DemoShellProps) {
           {view === "calendar" && (
             <CalendarView
               bookings={data.bookings}
+              quotes={data.quotes}
               inventory={data.inventory}
               onCreate={bookingActions.create}
               onUpdate={bookingActions.update}

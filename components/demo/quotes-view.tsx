@@ -330,25 +330,37 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
               <div className="space-y-3">
                 {draft.items.map((item, index) => (
                   <div key={`${index}-${item.inventoryId}`} className="grid gap-3 rounded-lg border border-border p-3 md:grid-cols-5">
-                    <Select value={item.inventoryId} onValueChange={(value) => updateItem(index, { inventoryId: value ?? "" })}>
-                      <SelectTrigger className="w-full md:col-span-2" aria-label={`Inventario ${index + 1}`}>
-                        <SelectValue placeholder="Selecciona inventario" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {inventory.map((inventoryItem) => (
-                          <SelectItem key={inventoryItem.id} value={inventoryItem.id}>
-                            {inventoryItem.id} · {inventoryItem.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <Input type="number" min="1" value={item.qty} onChange={(event) => updateItem(index, { qty: event.target.value })} placeholder="Cantidad" />
-                    <Input type="number" min="1" value={item.days} onChange={(event) => updateItem(index, { days: event.target.value })} placeholder="Días" />
-                    <div className="flex items-center gap-2">
-                      <Input type="number" step="0.01" value={item.price} onChange={(event) => updateItem(index, { price: event.target.value })} placeholder="Precio" />
-                      <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
-                        Quitar
-                      </Button>
+                    <div className="space-y-2 md:col-span-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Producto</p>
+                      <Select value={item.inventoryId} onValueChange={(value) => updateItem(index, { inventoryId: value ?? "" })}>
+                        <SelectTrigger className="w-full" aria-label={`Producto ${index + 1}`}>
+                          <SelectValue placeholder="Selecciona inventario" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {inventory.map((inventoryItem) => (
+                            <SelectItem key={inventoryItem.id} value={inventoryItem.id}>
+                              {inventoryItem.id} · {inventoryItem.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cantidad</p>
+                      <Input type="number" min="1" value={item.qty} onChange={(event) => updateItem(index, { qty: event.target.value })} placeholder="Cantidad" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Días</p>
+                      <Input type="number" min="1" value={item.days} onChange={(event) => updateItem(index, { days: event.target.value })} placeholder="Días" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Precio</p>
+                      <div className="flex items-center gap-2">
+                        <Input type="number" step="0.01" value={item.price} onChange={(event) => updateItem(index, { price: event.target.value })} placeholder="Precio" />
+                        <Button type="button" variant="ghost" size="sm" onClick={() => removeItem(index)}>
+                          Quitar
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

@@ -67,6 +67,13 @@ function toDraft(delivery: Delivery): DeliveryFormState {
   }
 }
 
+function toBookingDefaults(booking: EventBooking) {
+  return {
+    client: booking.client,
+    deliveryDate: booking.date,
+  }
+}
+
 export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDelete }: LogisticsViewProps) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<DeliveryFormState>(emptyDraft())
@@ -74,6 +81,7 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
   const formRef = useRef<HTMLDivElement | null>(null)
 
   const bookingById = useMemo(() => new Map(bookings.map((booking) => [booking.id, booking])), [bookings])
+  const bookingOptions = useMemo(() => bookings, [bookings])
 
   const summary = useMemo(() => {
     const totalKm = deliveries.reduce((sum, delivery) => sum + delivery.distanceKm, 0)
@@ -99,6 +107,25 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
     setEditingId(delivery.id)
     setDraft(toDraft(delivery))
     setError("")
+  }
+
+  function handleBookingChange(value: string) {
+    const selectedBooking = bookingById.get(value)
+
+    setDraft((current) => {
+      if (!selectedBooking) {
+        return { ...current, bookingId: value }
+      }
+
+      const defaults = toBookingDefaults(selectedBooking)
+
+      return {
+        ...current,
+        bookingId: value,
+        client: defaults.client,
+        deliveryDate: defaults.deliveryDate,
+      }
+    })
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -232,8 +259,26 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
         <CardContent className="space-y-3">
           {error && <p className="text-sm text-destructive">{error}</p>}
           <form className="grid gap-3 md:grid-cols-2" onSubmit={handleSubmit}>
-            <Input value={draft.bookingId} onChange={(event) => setDraft((current) => ({ ...current, bookingId: event.target.value }))} placeholder="Booking asociado" />
-            <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Booking asociado</p>
+              <Select value={draft.bookingId} onValueChange={handleBookingChange}>
+                <SelectTrigger className="w-full" aria-label="Booking asociado">
+                  <SelectValue placeholder="Selecciona un booking" />
+                </SelectTrigger>
+                <SelectContent>
+                  {bookingOptions.map((booking) => (
+                    <SelectItem key={booking.id} value={booking.id}>
+                      {booking.id} · {booking.client} · {booking.eventName} · {booking.date}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Se autocompletan cliente y fecha de entrega desde el booking seleccionado.</p>
+            </div>
+            <div className="space-y-2">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cliente</p>
+              <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
+            </div>
             <Input value={draft.address} onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} placeholder="Dirección" />
             <Input value={draft.zone} onChange={(event) => setDraft((current) => ({ ...current, zone: event.target.value }))} placeholder="Zona" />
             <Input type="date" value={draft.deliveryDate} onChange={(event) => setDraft((current) => ({ ...current, deliveryDate: event.target.value }))} />

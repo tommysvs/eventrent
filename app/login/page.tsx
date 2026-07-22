@@ -123,7 +123,7 @@ export default function LoginPage() {
                     type="text"
                     value={username}
                     onChange={(event) => setUsername(event.target.value)}
-                    placeholder="cliente01"
+                    placeholder="Ingresa tu usuario"
                     className="h-11 pl-9"
                   />
                 </div>
@@ -177,7 +177,7 @@ export default function LoginPage() {
             )}
 
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              ¿Aún no tienes cuenta? <a href="mailto:soporte@eventrent.local" className="font-medium text-foreground hover:text-accent">Solicita acceso al dueño del SaaS</a>
+              ¿Aún no tienes cuenta? <a href="mailto:soporte@eventrent.local" className="font-medium text-foreground hover:text-accent">Solicita acceso</a>
             </p>
           </CardContent>
         </Card>

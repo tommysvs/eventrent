@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StatusBadge } from "@/components/demo/status-badge"
-import type { BookingItem, EventBooking, InventoryItem, NewEventBooking } from "@/lib/demo-types"
-import { currency } from "@/lib/demo-types"
+import type { BookingItem, EventBooking, InventoryItem, NewEventBooking, Quote } from "@/lib/demo-types"
+import { currency, quoteTotal } from "@/lib/demo-types"
 import { cn } from "@/lib/utils"
 
 const weekDays = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
@@ -36,6 +36,7 @@ type BookingFormState = {
 
 type CalendarViewProps = {
   bookings: EventBooking[]
+  quotes: Quote[]
   inventory: InventoryItem[]
   onCreate: (booking: NewEventBooking) => Promise<string | null>
   onUpdate: (id: string, booking: EventBooking) => Promise<void>
@@ -97,12 +98,40 @@ function parseBookingItems(items: BookingItemDraft[]): BookingItem[] {
   return parsed.map((item) => ({ ...item }))
 }
 
-export function CalendarView({ bookings, inventory, onCreate, onUpdate, onDelete }: CalendarViewProps) {
+function draftItemsFromQuote(quote: Quote, inventoryById: Map<string, InventoryItem>) {
+  return quote.items.map((item) => {
+    const matchedInventory = Array.from(inventoryById.values()).find((inventoryItem) => inventoryItem.name === item.name)
+
+    return {
+      inventoryId: matchedInventory?.id ?? "",
+      qty: String(item.qty),
+      days: String(item.days),
+      price: String(item.price),
+    }
+  })
+}
+
+export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, onDelete }: CalendarViewProps) {
   const [selected, setSelected] = useState<number | null>(11)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [draft, setDraft] = useState<BookingFormState>(emptyDraft())
   const [error, setError] = useState("")
   const formRef = useRef<HTMLDivElement | null>(null)
+  const noQuoteValue = "__none__"
+
+  const relatedQuotes = useMemo(() => {
+    const pendingQuotes = quotes.filter((quote) => quote.status === "borrador" || quote.status === "enviada")
+    if (!draft.quoteId) {
+      return pendingQuotes
+    }
+
+    const currentQuote = quotes.find((quote) => quote.id === draft.quoteId)
+    if (!currentQuote || pendingQuotes.some((quote) => quote.id === currentQuote.id)) {
+      return pendingQuotes
+    }
+
+    return [currentQuote, ...pendingQuotes]
+  }, [draft.quoteId, quotes])
 
   const inventoryById = useMemo(() => new Map(inventory.map((item) => [item.id, item])), [inventory])
 
@@ -145,8 +174,29 @@ export function CalendarView({ bookings, inventory, onCreate, onUpdate, onDelete
   function startEdit(booking: EventBooking) {
     setEditingId(booking.id)
     setDraft(toDraft(booking))
-    setSelected(new Date(booking.date).getDate())
+    setSelected(Number(booking.date.slice(8, 10)))
     setError("")
+  }
+
+  function handleQuoteChange(value: string) {
+    const selectedQuote = quotes.find((quote) => quote.id === value)
+
+    setDraft((current) => {
+      if (!selectedQuote) {
+        return { ...current, quoteId: value }
+      }
+
+      return {
+        ...current,
+        quoteId: value,
+        client: selectedQuote.client,
+        eventName: selectedQuote.event,
+        date: selectedQuote.date,
+        endDate: selectedQuote.date,
+        value: String(quoteTotal(selectedQuote) * 1.21),
+        items: draftItemsFromQuote(selectedQuote, inventoryById),
+      }
+    })
   }
 
   function updateItem(index: number, next: Partial<BookingItemDraft>) {
@@ -333,7 +383,32 @@ export function CalendarView({ bookings, inventory, onCreate, onUpdate, onDelete
           <CardContent className="space-y-3">
             {error && <p className="text-sm text-destructive">{error}</p>}
             <form className="space-y-3" onSubmit={handleSubmit}>
-              <Input value={draft.quoteId} onChange={(event) => setDraft((current) => ({ ...current, quoteId: event.target.value }))} placeholder="Cotización relacionada (opcional)" />
+              <div className="space-y-2">
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cotización relacionada</p>
+                <Select
+                  value={draft.quoteId || noQuoteValue}
+                  onValueChange={(value) => {
+                    if (value === noQuoteValue) {
+                      setDraft((current) => ({ ...current, quoteId: "" }))
+                      return
+                    }
+
+                    handleQuoteChange(value)
+                  }}
+                >
+                  <SelectTrigger className="w-full" aria-label="Cotización relacionada">
+                    <SelectValue placeholder="Sin cotización" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={noQuoteValue}>Sin cotización</SelectItem>
+                    {relatedQuotes.map((quote) => (
+                      <SelectItem key={quote.id} value={quote.id}>
+                        {quote.id} · {quote.client} · {quote.event} · {currency.format(quoteTotal(quote) * 1.21)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
               <Input value={draft.eventName} onChange={(event) => setDraft((current) => ({ ...current, eventName: event.target.value }))} placeholder="Evento" />
               <div className="grid grid-cols-2 gap-2">
@@ -341,28 +416,34 @@ export function CalendarView({ bookings, inventory, onCreate, onUpdate, onDelete
                 <Input type="date" value={draft.endDate} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as EventBooking["status"] }))}>
-                  <SelectTrigger className="w-full" aria-label="Estado booking">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="confirmado">Confirmado</SelectItem>
-                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                    <SelectItem value="entregado">Entregado</SelectItem>
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select value={draft.paymentStatus} onValueChange={(value) => setDraft((current) => ({ ...current, paymentStatus: value as EventBooking["paymentStatus"] }))}>
-                  <SelectTrigger className="w-full" aria-label="Estado de pago">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pendiente">Pendiente</SelectItem>
-                    <SelectItem value="parcial">Parcial</SelectItem>
-                    <SelectItem value="pagado">Pagado</SelectItem>
-                    <SelectItem value="cancelado">Cancelado</SelectItem>
-                  </SelectContent>
-                </Select>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado de la reserva</p>
+                  <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as EventBooking["status"] }))}>
+                    <SelectTrigger className="w-full" aria-label="Estado de la reserva">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="confirmado">Confirmado</SelectItem>
+                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="entregado">Entregado</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Estado de pago</p>
+                  <Select value={draft.paymentStatus} onValueChange={(value) => setDraft((current) => ({ ...current, paymentStatus: value as EventBooking["paymentStatus"] }))}>
+                    <SelectTrigger className="w-full" aria-label="Estado de pago">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pendiente">Pendiente</SelectItem>
+                      <SelectItem value="parcial">Parcial</SelectItem>
+                      <SelectItem value="pagado">Pagado</SelectItem>
+                      <SelectItem value="cancelado">Cancelado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div className="space-y-3">
