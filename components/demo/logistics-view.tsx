@@ -131,19 +131,20 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
     setError("")
   }
 
-  function handleBookingChange(value: string) {
-    const selectedBooking = bookingById.get(value)
+  function handleBookingChange(value: string | null) {
+    const bookingId = value ?? ""
+    const selectedBooking = bookingById.get(bookingId)
 
     setDraft((current) => {
       if (!selectedBooking) {
-        return { ...current, bookingId: value }
+        return { ...current, bookingId }
       }
 
       const defaults = toBookingDefaults(selectedBooking)
 
       return {
         ...current,
-        bookingId: value,
+        bookingId,
         client: defaults.client,
         deliveryDate: defaults.deliveryDate,
       }
