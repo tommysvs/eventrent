@@ -25,6 +25,7 @@ import type {
 import {
   LayoutDashboard,
   Boxes,
+  CalendarClock,
   CalendarDays,
   FileText,
   Truck,
@@ -143,9 +144,9 @@ export function DemoShell({ initialData, isAdmin, username, name }: DemoShellPro
       >
         <div className="flex h-16 items-center justify-between border-b border-border px-5">
           <Link href="/" className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-              <Boxes className="h-4 w-4" />
-            </div>
+            <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <CalendarClock className="h-5 w-5" />
+            </span>
             <span className="font-semibold text-foreground">EventRent</span>
           </Link>
           <button
