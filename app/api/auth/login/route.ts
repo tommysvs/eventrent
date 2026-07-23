@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { db } from '@/lib/db'
 import { createSessionToken } from '@/lib/auth'
 import { LOG_ACTION, LOG_EVENT_TYPE, LOG_SEVERITY, writeSecurityLog } from '@/lib/security-log'
+import { checkForSqlInjection } from '@/lib/sql-injection-guard'
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +24,33 @@ export async function POST(request: NextRequest) {
       })
 
       return NextResponse.json({ error: 'Username and password are required' }, { status: 400 })
+    }
+
+    const usernameCheck = checkForSqlInjection(username)
+    const passwordCheck = checkForSqlInjection(password)
+    const blockedFields = [
+      usernameCheck.suspicious ? 'username' : null,
+      passwordCheck.suspicious ? 'password' : null,
+    ].filter(Boolean)
+
+    if (blockedFields.length > 0) {
+      await writeSecurityLog({
+        request,
+        eventType: LOG_EVENT_TYPE.SECURITY,
+        action: LOG_ACTION.ACCESS_DENIED,
+        severity: LOG_SEVERITY.WARNING,
+        description: 'Blocked login attempt with SQL injection-like input',
+        statusCode: 400,
+        metadata: {
+          blockedFields,
+          username,
+          usernameSignals: usernameCheck.signals,
+          passwordSignals: passwordCheck.signals,
+          protection: 'parameterized-query-plus-input-guard',
+        },
+      })
+
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 400 })
     }
 
     const user = await db.user.findUnique({
