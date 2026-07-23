@@ -22,6 +22,8 @@ import { verifySessionToken } from '@/lib/auth'
 import { pgPool } from '@/lib/pg'
 
 export const dynamic = 'force-dynamic'
+export const revalidate = 0
+const ADMIN_ROLE_ID = BigInt('1')
 
 const EVENT_TYPE_OPTIONS = ['ALL', 'user_action', 'security', 'system'] as const
 const SEVERITY_OPTIONS = ['ALL', 'info', 'warning', 'critical'] as const
@@ -112,20 +114,19 @@ export default async function LogsPage({ searchParams }: { searchParams: Promise
 
   const userId = BigInt(session.sub)
 
-  const roleCheck = await pgPool.query<{ is_admin: boolean }>(
+  const roleCheck = await pgPool.query<{ role_id: string | number | bigint }>(
     `
-      SELECT EXISTS (
-        SELECT 1
-        FROM users u
-        INNER JOIN roles r ON r.id = u.role_id
-        WHERE u.id = $1
-          AND lower(r.name) = 'admin'
-      ) AS is_admin
+      SELECT u.role_id
+      FROM users u
+      WHERE u.id = $1
+      LIMIT 1
     `,
     [userId.toString()],
   )
 
-  const isAdmin = roleCheck.rows[0]?.is_admin === true
+  const roleIdRaw = roleCheck.rows[0]?.role_id
+  const roleId = roleIdRaw === undefined || roleIdRaw === null ? null : BigInt(String(roleIdRaw))
+  const isAdmin = roleId === ADMIN_ROLE_ID
 
   if (!isAdmin) {
     redirect('/demo')

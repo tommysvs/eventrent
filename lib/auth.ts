@@ -3,6 +3,7 @@ import crypto from 'node:crypto'
 type SessionPayload = {
   sub: string
   username: string
+  name?: string
   role: string
   iat: number
   exp: number
@@ -33,7 +34,7 @@ function getAuthSecret() {
   return secret
 }
 
-export function createSessionToken(data: { sub: string; username: string; role: string }) {
+export function createSessionToken(data: { sub: string; username: string; name?: string; role: string }) {
   const header = { alg: 'HS256', typ: 'JWT' }
   const now = Math.floor(Date.now() / 1000)
   const payload: SessionPayload = {

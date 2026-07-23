@@ -5,6 +5,7 @@ import { pgPool } from "@/lib/pg"
 import { cookies } from "next/headers"
 
 export const dynamic = "force-dynamic"
+const ADMIN_ROLE_ID = BigInt("1")
 
 export const metadata = {
   title: "Demo · EventRent",
@@ -21,22 +22,28 @@ export default async function DemoPage() {
   let isAdmin = false
 
   if (userId) {
-    const result = await pgPool.query<{ is_admin: boolean }>(
+    const result = await pgPool.query<{ role_id: string | number | bigint }>(
       `
-        SELECT EXISTS (
-          SELECT 1
-          FROM users u
-          INNER JOIN roles r ON r.id = u.role_id
-          WHERE u.id = $1
-            AND lower(r.name) = 'admin'
-        ) AS is_admin
+        SELECT u.role_id
+        FROM users u
+        WHERE u.id = $1
+        LIMIT 1
       `,
       [userId.toString()],
     )
 
-    isAdmin = result.rows[0]?.is_admin === true
+    const roleIdRaw = result.rows[0]?.role_id
+    const roleId = roleIdRaw === undefined || roleIdRaw === null ? null : BigInt(String(roleIdRaw))
+    isAdmin = roleId === ADMIN_ROLE_ID
   }
 
   const initialData = await getDemoSnapshot()
-  return <DemoShell initialData={initialData} isAdmin={isAdmin} />
+  return (
+    <DemoShell
+      initialData={initialData}
+      isAdmin={isAdmin}
+      username={session?.username ?? null}
+      name={session?.name ?? null}
+    />
+  )
 }

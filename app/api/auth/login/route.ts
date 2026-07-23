@@ -75,6 +75,7 @@ export async function POST(request: NextRequest) {
     const token = createSessionToken({
       sub: user.id.toString(),
       username: user.username,
+      name: user.name ?? undefined,
       role: user.role.name,
     })
 

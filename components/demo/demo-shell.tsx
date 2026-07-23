@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
@@ -50,6 +49,8 @@ type ViewId = (typeof nav)[number]["id"]
 type DemoShellProps = {
   initialData: DemoSnapshot
   isAdmin: boolean
+  username: string | null
+  name: string | null
 }
 
 const titles: Record<ViewId, { title: string; subtitle: string }> = {
@@ -61,11 +62,10 @@ const titles: Record<ViewId, { title: string; subtitle: string }> = {
   movements: { title: "Movimientos de inventario", subtitle: "Historial de reservas, ajustes y entregas" },
 }
 
-export function DemoShell({ initialData, isAdmin }: DemoShellProps) {
+export function DemoShell({ initialData, isAdmin, username, name }: DemoShellProps) {
   const [view, setView] = useState<ViewId>("overview")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [data, setData] = useState(initialData)
-  const router = useRouter()
 
   useEffect(() => {
     setData(initialData)
@@ -106,8 +106,7 @@ export function DemoShell({ initialData, isAdmin }: DemoShellProps) {
 
   async function handleLogout() {
     await fetch("/api/auth/logout", { method: "POST" })
-    router.replace("/login")
-    router.refresh()
+    window.location.assign("/login")
   }
 
   const inventoryActions = {
@@ -214,6 +213,14 @@ export function DemoShell({ initialData, isAdmin }: DemoShellProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {(name || username) && (
+              <div className="hidden text-right sm:block">
+                <p className="text-xs font-medium uppercase tracking-[0.2em] text-muted-foreground">
+                  Bienvenido
+                </p>
+                <p className="text-sm font-semibold text-foreground">{name ?? username}</p>
+              </div>
+            )}
             {isAdmin && (
               <Button
                 render={<a href="/admin/logs" />}

@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { ArrowRight, CalendarClock, Eye, EyeOff, Lock, ShieldCheck, Sparkles, User } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -10,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 
 export default function LoginPage() {
-  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [username, setUsername] = useState("")
   const [password, setPassword] = useState("")
@@ -36,8 +34,7 @@ export default function LoginPage() {
         return
       }
 
-      router.push("/demo")
-      router.refresh()
+      window.location.assign("/demo")
     } catch {
       setError("No se pudo conectar con el servidor")
     } finally {
