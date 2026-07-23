@@ -27,6 +27,15 @@ type QuoteFormState = {
   items: QuoteItemDraft[]
 }
 
+function getTodayIso() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
 type QuotesViewProps = {
   quotes: Quote[]
   inventory: InventoryItem[]
@@ -47,7 +56,7 @@ function emptyDraft(): QuoteFormState {
   return {
     client: "",
     event: "",
-    date: "2026-07-06",
+    date: getTodayIso(),
     status: "borrador",
     items: [emptyItem()],
   }
@@ -110,6 +119,7 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
   const [activeId, setActiveId] = useState(quotes[0]?.id ?? "")
   const [draft, setDraft] = useState<QuoteFormState>(quotes[0] ? toDraft(quotes[0]) : emptyDraft())
   const [error, setError] = useState("")
+  const todayIso = getTodayIso()
 
   const inventoryById = useMemo(() => new Map(inventory.map((item) => [item.id, item])), [inventory])
   const active = useMemo(() => quotes.find((quote) => quote.id === activeId), [quotes, activeId])
@@ -181,6 +191,11 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
       return
     }
 
+    if (draft.date < todayIso) {
+      setError("La fecha de la cotización no puede ser anterior a hoy.")
+      return
+    }
+
     const payload: NewQuote = {
       client: draft.client.trim(),
       event: draft.event.trim(),
@@ -226,6 +241,11 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
   async function handleConvertToBooking(quote: Quote) {
     if (bookingByQuoteId.has(quote.id)) {
       setError("Esta cotización ya tiene una reserva creada.")
+      return
+    }
+
+    if (quote.date < todayIso) {
+      setError("No se puede crear una reserva desde una cotización con fecha anterior a hoy.")
       return
     }
 
@@ -325,7 +345,7 @@ export function QuotesView({ quotes, inventory, bookings, onCreate, onUpdate, on
             <div className="grid gap-3 md:grid-cols-2">
               <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
               <Input value={draft.event} onChange={(event) => setDraft((current) => ({ ...current, event: event.target.value }))} placeholder="Evento" />
-              <Input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} />
+              <Input type="date" min={todayIso} value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} />
               <Select value={draft.status} onValueChange={(value) => setDraft((current) => ({ ...current, status: value as Quote["status"] }))}>
                 <SelectTrigger className="w-full" aria-label="Estado quote">
                   <SelectValue />

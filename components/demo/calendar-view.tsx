@@ -36,6 +36,15 @@ type BookingFormState = {
   value: string
 }
 
+function getTodayIso() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
 type CalendarViewProps = {
   bookings: EventBooking[]
   quotes: Quote[]
@@ -50,12 +59,14 @@ function emptyItem(): BookingItemDraft {
 }
 
 function emptyDraft(): BookingFormState {
+  const todayIso = getTodayIso()
+
   return {
     quoteId: "",
     client: "",
     eventName: "",
-    date: "2026-07-11",
-    endDate: "2026-07-11",
+    date: todayIso,
+    endDate: todayIso,
     items: [emptyItem()],
     status: "pendiente",
     paymentStatus: "pendiente",
@@ -145,6 +156,7 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
   const [draft, setDraft] = useState<BookingFormState>(emptyDraft())
   const [error, setError] = useState("")
   const [query, setQuery] = useState("")
+  const todayIso = getTodayIso()
   const noQuoteValue = "__none__"
   const normalizedQuery = query.trim().toLowerCase()
 
@@ -290,6 +302,11 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
 
     if (!draft.quoteId.trim() && bookingItems.length === 0) {
       setError("Agrega al menos un producto o vincula una cotización.")
+      return
+    }
+
+    if (draft.date < todayIso || draft.endDate < todayIso) {
+      setError("La fecha de la reserva no puede ser anterior a hoy.")
       return
     }
 
@@ -505,8 +522,8 @@ export function CalendarView({ bookings, quotes, inventory, onCreate, onUpdate, 
                 <Input value={draft.client} onChange={(event) => setDraft((current) => ({ ...current, client: event.target.value }))} placeholder="Cliente" />
                 <Input value={draft.eventName} onChange={(event) => setDraft((current) => ({ ...current, eventName: event.target.value }))} placeholder="Evento" />
                 <div className="grid grid-cols-2 gap-2">
-                  <Input type="date" value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} />
-                  <Input type="date" value={draft.endDate} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
+                  <Input type="date" min={todayIso} value={draft.date} onChange={(event) => setDraft((current) => ({ ...current, date: event.target.value }))} />
+                  <Input type="date" min={draft.date || todayIso} value={draft.endDate} onChange={(event) => setDraft((current) => ({ ...current, endDate: event.target.value }))} />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div className="space-y-2">

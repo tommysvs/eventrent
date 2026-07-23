@@ -35,13 +35,24 @@ type LogisticsViewProps = {
 
 const statusOptions: Delivery["status"][] = ["programada", "en-ruta", "entregada", "cancelada"]
 
+function getTodayIso() {
+  const now = new Date()
+  const year = now.getFullYear()
+  const month = String(now.getMonth() + 1).padStart(2, "0")
+  const day = String(now.getDate()).padStart(2, "0")
+
+  return `${year}-${month}-${day}`
+}
+
 function emptyDraft(): DeliveryFormState {
+  const todayIso = getTodayIso()
+
   return {
     bookingId: "",
     client: "",
     address: "",
     zone: "",
-    deliveryDate: "2026-07-11",
+    deliveryDate: todayIso,
     windowStart: "08:00",
     windowEnd: "10:00",
     driver: "",
@@ -82,6 +93,7 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [draft, setDraft] = useState<DeliveryFormState>(emptyDraft())
   const [error, setError] = useState("")
+  const todayIso = getTodayIso()
 
   const bookingById = useMemo(() => new Map(bookings.map((booking) => [booking.id, booking])), [bookings])
   const bookingOptions = useMemo(() => bookings, [bookings])
@@ -188,6 +200,11 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
 
     if (!payload.client || !payload.address) {
       setError("Completa cliente y dirección.")
+      return
+    }
+
+    if (payload.deliveryDate < todayIso) {
+      setError("La fecha de la entrega no puede ser anterior a hoy.")
       return
     }
 
@@ -342,7 +359,7 @@ export function LogisticsView({ deliveries, bookings, onCreate, onUpdate, onDele
                 </div>
                 <Input value={draft.address} onChange={(event) => setDraft((current) => ({ ...current, address: event.target.value }))} placeholder="Dirección" />
                 <Input value={draft.zone} onChange={(event) => setDraft((current) => ({ ...current, zone: event.target.value }))} placeholder="Zona" />
-                <Input type="date" value={draft.deliveryDate} onChange={(event) => setDraft((current) => ({ ...current, deliveryDate: event.target.value }))} />
+                <Input type="date" min={todayIso} value={draft.deliveryDate} onChange={(event) => setDraft((current) => ({ ...current, deliveryDate: event.target.value }))} />
                 <div className="space-y-2 md:col-span-2">
                   <p className="text-sm font-medium text-foreground">Ventana de entrega</p>
                   <div className="grid grid-cols-2 gap-2">
