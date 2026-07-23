@@ -7,7 +7,9 @@ const connectionStringCandidates = [
 function normalizeConnectionString(connectionString: string) {
   try {
     const url = new URL(connectionString)
-    const isSupabase = url.hostname.endsWith('.supabase.co')
+    const isSupabase =
+      url.hostname.endsWith('.supabase.co') ||
+      url.hostname.endsWith('.supabase.com')
     const hasSslMode = url.searchParams.has('sslmode')
     const sslMode = url.searchParams.get('sslmode')
     const hasLibpqCompat = url.searchParams.get('uselibpqcompat') === 'true'
