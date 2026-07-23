@@ -1,5 +1,5 @@
 import { Pool, type PoolClient } from 'pg'
-import { getDatabaseConnectionString } from './database-url'
+import { pgPool } from './pg'
 
 type SqlValue = unknown
 
@@ -107,19 +107,7 @@ function mapDbUserWithRole(row: Record<string, unknown> | null): DbUserWithRole 
   }
 }
 
-const globalForDb = globalThis as unknown as {
-  sqlPool: Pool | undefined
-}
-
-const sqlPool =
-  globalForDb.sqlPool ??
-  new Pool({
-    connectionString: getDatabaseConnectionString(),
-  })
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForDb.sqlPool = sqlPool
-}
+const sqlPool = pgPool
 
 export const db = {
   ...createRawSqlApi(sqlPool),
