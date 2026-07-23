@@ -1,11 +1,8 @@
-import { DemoShell } from "@/components/demo/demo-shell"
-import { verifySessionToken } from "@/lib/auth"
-import { getDemoSnapshot } from "@/lib/demo-store"
-import { pgPool } from "@/lib/pg"
 import { cookies } from "next/headers"
-
-export const dynamic = "force-dynamic"
-const ADMIN_ROLE_ID = BigInt("1")
+import { DemoShell } from "@/components/demo/demo-shell"
+import { getDemoSnapshot } from "@/lib/demo-store"
+import { verifySessionToken } from "@/lib/auth"
+import { pgPool } from "@/lib/pg"
 
 export const metadata = {
   title: "Demo · EventRent",
@@ -13,37 +10,45 @@ export const metadata = {
     "Demo interactiva del panel de EventRent: inventario en tiempo real, calendario de disponibilidad, cotizaciones y logística de entregas.",
 }
 
+export const dynamic = "force-dynamic"
+const ADMIN_ROLE_ID = BigInt("1")
+
 export default async function DemoPage() {
+  const initialData = await getDemoSnapshot()
+
   const cookieStore = await cookies()
-  const sessionToken = cookieStore.get("eventrent_session")?.value
-  const session = sessionToken ? verifySessionToken(sessionToken) : null
-  const userId = session?.sub ? BigInt(session.sub) : null
+  const token = cookieStore.get("eventrent_session")?.value
+  const session = token ? verifySessionToken(token) : null
 
   let isAdmin = false
+  let username: string | null = null
+  let name: string | null = null
 
-  if (userId) {
-    const result = await pgPool.query<{ role_id: string | number | bigint }>(
+  if (session) {
+    username = session.username
+    name = session.name ?? null
+
+    const roleCheck = await pgPool.query<{ role_id: string | number | bigint }>(
       `
         SELECT u.role_id
         FROM users u
         WHERE u.id = $1
         LIMIT 1
       `,
-      [userId.toString()],
+      [session.sub],
     )
 
-    const roleIdRaw = result.rows[0]?.role_id
+    const roleIdRaw = roleCheck.rows[0]?.role_id
     const roleId = roleIdRaw === undefined || roleIdRaw === null ? null : BigInt(String(roleIdRaw))
     isAdmin = roleId === ADMIN_ROLE_ID
   }
 
-  const initialData = await getDemoSnapshot()
   return (
     <DemoShell
       initialData={initialData}
       isAdmin={isAdmin}
-      username={session?.username ?? null}
-      name={session?.name ?? null}
+      username={username}
+      name={name}
     />
   )
 }
