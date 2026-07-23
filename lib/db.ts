@@ -1,4 +1,5 @@
 import { Pool, type PoolClient } from 'pg'
+import { getDatabaseConnectionString } from './database-url'
 
 type SqlValue = unknown
 
@@ -113,7 +114,7 @@ const globalForDb = globalThis as unknown as {
 const sqlPool =
   globalForDb.sqlPool ??
   new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: getDatabaseConnectionString(),
   })
 
 if (process.env.NODE_ENV !== 'production') {

@@ -1,4 +1,5 @@
 import { Pool } from 'pg'
+import { getDatabaseConnectionString } from './database-url'
 
 const globalForPg = globalThis as unknown as {
   pgPool: Pool | undefined
@@ -7,7 +8,7 @@ const globalForPg = globalThis as unknown as {
 export const pgPool =
   globalForPg.pgPool ??
   new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString: getDatabaseConnectionString(),
   })
 
 if (process.env.NODE_ENV !== 'production') {
