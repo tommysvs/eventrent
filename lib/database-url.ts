@@ -4,6 +4,28 @@ const connectionStringCandidates = [
   process.env.DATABASE_POSTGRES_URL_NON_POOLING,
 ]
 
+function normalizeConnectionString(connectionString: string) {
+  try {
+    const url = new URL(connectionString)
+    const isSupabase = url.hostname.endsWith('.supabase.co')
+    const hasSslMode = url.searchParams.has('sslmode')
+    const sslMode = url.searchParams.get('sslmode')
+    const hasLibpqCompat = url.searchParams.get('uselibpqcompat') === 'true'
+
+    if (isSupabase && !hasSslMode) {
+      url.searchParams.set('sslmode', 'require')
+    }
+
+    if (isSupabase && (sslMode === 'require' || url.searchParams.get('sslmode') === 'require') && !hasLibpqCompat) {
+      url.searchParams.set('uselibpqcompat', 'true')
+    }
+
+    return url.toString()
+  } catch {
+    return connectionString
+  }
+}
+
 export function getDatabaseConnectionString() {
   const connectionString = connectionStringCandidates.find((value) => typeof value === 'string' && value.length > 0)
 
@@ -13,5 +35,5 @@ export function getDatabaseConnectionString() {
     )
   }
 
-  return connectionString
+  return normalizeConnectionString(connectionString)
 }
