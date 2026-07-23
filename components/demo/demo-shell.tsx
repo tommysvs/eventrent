@@ -30,6 +30,7 @@ import {
   FileText,
   Truck,
   History,
+  ShieldAlert,
   LogOut,
   Menu,
   X,
@@ -48,6 +49,7 @@ type ViewId = (typeof nav)[number]["id"]
 
 type DemoShellProps = {
   initialData: DemoSnapshot
+  isAdmin: boolean
 }
 
 const titles: Record<ViewId, { title: string; subtitle: string }> = {
@@ -59,7 +61,7 @@ const titles: Record<ViewId, { title: string; subtitle: string }> = {
   movements: { title: "Movimientos de inventario", subtitle: "Historial de reservas, ajustes y entregas" },
 }
 
-export function DemoShell({ initialData }: DemoShellProps) {
+export function DemoShell({ initialData, isAdmin }: DemoShellProps) {
   const [view, setView] = useState<ViewId>("overview")
   const [mobileOpen, setMobileOpen] = useState(false)
   const [data, setData] = useState(initialData)
@@ -212,6 +214,18 @@ export function DemoShell({ initialData }: DemoShellProps) {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            {isAdmin && (
+              <Button
+                render={<a href="/admin/logs" />}
+                nativeButton={false}
+                variant="outline"
+                size="sm"
+                className="hidden gap-2 md:inline-flex"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                Logs
+              </Button>
+            )}
             <Avatar className="h-9 w-9">
               <AvatarFallback className="bg-primary text-primary-foreground text-xs">ER</AvatarFallback>
             </Avatar>
