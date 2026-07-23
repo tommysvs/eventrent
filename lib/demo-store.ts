@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma"
+import { db } from "@/lib/db"
 import type {
   BookingItem,
   Delivery,
@@ -231,7 +231,7 @@ function computeKpis(snapshot: Pick<DemoSnapshot, "inventory" | "bookings" | "qu
 async function getInventoryItemsMap(inventoryIds: string[]) {
   if (inventoryIds.length === 0) return new Map<string, InventoryItem>()
 
-  const rows = await prisma.$queryRaw<RawInventoryRow[]>`
+  const rows = await db.$queryRaw<RawInventoryRow[]>`
     SELECT
       id,
       name,
@@ -377,7 +377,7 @@ async function releaseBookingItems(tx: any, bookingId: string, bookingItems: Boo
 }
 
 async function loadBookingItemsByBookingId(bookingId: string) {
-  const items = await prisma.$queryRaw<RawBookingItemRow[]>`
+  const items = await db.$queryRaw<RawBookingItemRow[]>`
     SELECT
       bi.booking_id,
       bi.inventory_id,
@@ -395,7 +395,7 @@ async function loadBookingItemsByBookingId(bookingId: string) {
 }
 
 async function loadBookingsWithItems() {
-  const bookings = await prisma.$queryRaw<RawBookingRow[]>`
+  const bookings = await db.$queryRaw<RawBookingRow[]>`
     SELECT
       id,
       quote_id,
@@ -411,7 +411,7 @@ async function loadBookingsWithItems() {
     ORDER BY date DESC, id DESC
   `
 
-  const items = await prisma.$queryRaw<RawBookingItemRow[]>`
+  const items = await db.$queryRaw<RawBookingItemRow[]>`
     SELECT
       bi.booking_id,
       bi.inventory_id,
@@ -468,7 +468,7 @@ async function hydrateBookingItems(items: BookingItem[]) {
 }
 
 export async function getInventoryRecords() {
-  const rows = await prisma.$queryRaw<RawInventoryRow[]>`
+  const rows = await db.$queryRaw<RawInventoryRow[]>`
     SELECT
       id,
       name,
@@ -491,13 +491,13 @@ export async function getBookingRecords() {
 }
 
 export async function getQuoteRecords() {
-  const quotes = await prisma.$queryRaw<RawQuoteRow[]>`
+  const quotes = await db.$queryRaw<RawQuoteRow[]>`
     SELECT id, client, event, date::text AS date, status, total
     FROM quotes
     ORDER BY date DESC, id DESC
   `
 
-  const items = await prisma.$queryRaw<RawQuoteItemRow[]>`
+  const items = await db.$queryRaw<RawQuoteItemRow[]>`
     SELECT
       qi.quote_id,
       qi.inventory_id,
@@ -522,7 +522,7 @@ export async function getQuoteRecords() {
 }
 
 export async function getDeliveryRecords() {
-  const rows = await prisma.$queryRaw<RawDeliveryRow[]>`
+  const rows = await db.$queryRaw<RawDeliveryRow[]>`
     SELECT
       id,
       booking_id AS "bookingId",
@@ -543,7 +543,7 @@ export async function getDeliveryRecords() {
 }
 
 export async function getInventoryMovementRecords() {
-  const rows = await prisma.$queryRaw<RawMovementRow[]>`
+  const rows = await db.$queryRaw<RawMovementRow[]>`
     SELECT
       m.inventory_id,
       i.name AS inventory_name,
@@ -601,7 +601,7 @@ export async function getDemoResource(resource: DemoResource) {
 }
 
 export async function createInventoryRecord(item: NewInventoryItem) {
-  const created = await prisma.$queryRaw<{ id: string }[]>`
+  const created = await db.$queryRaw<{ id: string }[]>`
     INSERT INTO inventory (
       name,
       category,
@@ -628,7 +628,7 @@ export async function createInventoryRecord(item: NewInventoryItem) {
 }
 
 export async function updateInventoryRecord(id: string, item: InventoryItem) {
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     const currentRows = await tx.$queryRaw<RawInventoryRow[]>`
       SELECT
         id,
@@ -679,11 +679,11 @@ export async function updateInventoryRecord(id: string, item: InventoryItem) {
 }
 
 export async function deleteInventoryRecord(id: string) {
-  await prisma.$executeRaw`DELETE FROM inventory WHERE id = ${id}`
+  await db.$executeRaw`DELETE FROM inventory WHERE id = ${id}`
 }
 
 export async function createQuoteRecord(quote: NewQuote) {
-  return prisma.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const quoteItems = await hydrateQuoteItems(quote.items)
     const total = quoteTotal(quoteItems)
 
@@ -710,7 +710,7 @@ export async function createQuoteRecord(quote: NewQuote) {
 }
 
 export async function updateQuoteRecord(id: string, quote: Quote) {
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     const quoteItems = await hydrateQuoteItems(quote.items)
     const total = quoteTotal(quoteItems)
 
@@ -732,7 +732,7 @@ export async function updateQuoteRecord(id: string, quote: Quote) {
 }
 
 export async function deleteQuoteRecord(id: string) {
-  await prisma.$executeRaw`DELETE FROM quotes WHERE id = ${id}`
+  await db.$executeRaw`DELETE FROM quotes WHERE id = ${id}`
 }
 
 async function resolveBookingItems(tx: any, booking: NewEventBooking) {
@@ -755,7 +755,7 @@ async function resolveBookingItems(tx: any, booking: NewEventBooking) {
 }
 
 async function loadQuoteItemsByQuoteId(quoteId: string) {
-  const items = await prisma.$queryRaw<RawQuoteItemRow[]>`
+  const items = await db.$queryRaw<RawQuoteItemRow[]>`
     SELECT
       qi.quote_id,
       qi.inventory_id,
@@ -845,7 +845,7 @@ function diffBookingItems(previousItems: BookingItem[], nextItems: BookingItem[]
 }
 
 export async function createBookingRecord(booking: NewEventBooking) {
-  return prisma.$transaction(async (tx) => {
+  return db.$transaction(async (tx) => {
     const bookingItems = await resolveBookingItems(tx, booking)
     const hydratedItems = await hydrateBookingItems(bookingItems)
     const itemsCount = hydratedItems.reduce((sum, item) => sum + item.qty, 0)
@@ -883,7 +883,7 @@ export async function createBookingRecord(booking: NewEventBooking) {
 }
 
 export async function updateBookingRecord(id: string, booking: EventBooking) {
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     const currentRows = await tx.$queryRaw<RawBookingRow[]>`
       SELECT
         id,
@@ -953,7 +953,7 @@ export async function updateBookingRecord(id: string, booking: EventBooking) {
 }
 
 export async function deleteBookingRecord(id: string) {
-  await prisma.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     const items = await loadBookingItemsForUpdate(tx, id)
     if (items.length > 0) {
       await releaseBookingItems(tx, id, items)
@@ -965,7 +965,7 @@ export async function deleteBookingRecord(id: string) {
 }
 
 export async function createDeliveryRecord(delivery: NewDelivery) {
-  const bookingRows = await prisma.$queryRaw<{ id: string }[]>`
+  const bookingRows = await db.$queryRaw<{ id: string }[]>`
     SELECT id
     FROM bookings
     WHERE id = ${delivery.bookingId}
@@ -975,7 +975,7 @@ export async function createDeliveryRecord(delivery: NewDelivery) {
     throw new Error("No se puede crear una entrega sin booking asociado")
   }
 
-  const created = await prisma.$queryRaw<{ id: string }[]>`
+  const created = await db.$queryRaw<{ id: string }[]>`
     INSERT INTO deliveries (
       booking_id,
       client,
@@ -1006,7 +1006,7 @@ export async function createDeliveryRecord(delivery: NewDelivery) {
 }
 
 export async function updateDeliveryRecord(id: string, delivery: Delivery) {
-  await prisma.$executeRaw`
+  await db.$executeRaw`
     UPDATE deliveries
     SET
       booking_id = ${delivery.bookingId},
@@ -1024,5 +1024,5 @@ export async function updateDeliveryRecord(id: string, delivery: Delivery) {
 }
 
 export async function deleteDeliveryRecord(id: string) {
-  await prisma.$executeRaw`DELETE FROM deliveries WHERE id = ${id}`
+  await db.$executeRaw`DELETE FROM deliveries WHERE id = ${id}`
 }
