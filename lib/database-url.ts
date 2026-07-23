@@ -10,9 +10,17 @@ function normalizeConnectionString(connectionString: string) {
     const isSupabase =
       url.hostname.endsWith('.supabase.co') ||
       url.hostname.endsWith('.supabase.com')
+    const isSupabasePoolerHost = url.hostname.endsWith('.pooler.supabase.com')
     const hasSslMode = url.searchParams.has('sslmode')
     const sslMode = url.searchParams.get('sslmode')
     const hasLibpqCompat = url.searchParams.get('uselibpqcompat') === 'true'
+    const keepSessionPooler = process.env.SUPABASE_KEEP_SESSION_POOLER === 'true'
+
+    // In serverless environments, Supabase session pooler (5432) can exhaust quickly.
+    // Default to transaction pooler (6543) unless explicitly overridden.
+    if (isSupabasePoolerHost && url.port === '5432' && !keepSessionPooler) {
+      url.port = '6543'
+    }
 
     if (isSupabase && !hasSslMode) {
       url.searchParams.set('sslmode', 'require')

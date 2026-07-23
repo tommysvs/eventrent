@@ -25,7 +25,7 @@ export const pgPool =
   globalForPg.pgPool ??
   new Pool({
     connectionString: getDatabaseConnectionString(),
-    max: getNumericEnv('PG_POOL_MAX', 3),
+    max: getNumericEnv('PG_POOL_MAX', 1),
     idleTimeoutMillis: getNumericEnv('PG_IDLE_TIMEOUT_MS', 10_000),
     connectionTimeoutMillis: getNumericEnv('PG_CONNECT_TIMEOUT_MS', 10_000),
   })
